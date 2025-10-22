@@ -17,7 +17,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -34,7 +34,7 @@ jobs:
 
       - name: Upload Gitleaks Report
         if: always()                           # Always upload the report even if previous step fails
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gitleaks-report
           path: gitleaks-report.json
