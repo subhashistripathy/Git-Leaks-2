@@ -1,40 +1,40 @@
-name: gitleaks
+name: Snyk Library Scan
+
 on:
   push:
-    branches:
-      - '**'   # Run on push to any branch
+    branches: [ main, master ]
   pull_request:
-    branches:
-      - '**'   # Run on pull requests from any branch
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
-  scan:
-    name: gitleaks
-    runs-on: ubuntu-22.04
+  snyk-library-scan:
+    runs-on: ubuntu-latest
+
     permissions:
-      pull-requests: write
       contents: read
+      security-events: write
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Run Gitleaks Scan
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          config: .gitleaks.toml               # Optional: your custom config
-          fail_on_new_secrets: false           # Don't fail if secrets are found
-          report_format: json                  # Save report in JSON format
-          report_path: gitleaks-report.json    # Path to store the report
-        continue-on-error: true                # Prevents job failure if leaks are found
+      # THIS ACTION EXISTS
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@v3
+
+      - name: Run Snyk SCA Scan
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SNYK_TOKEN: c80a2012-bb87-4482-beb5-399c664f183d
+        run: |
+          snyk test --all-projects || true
 
-      - name: Upload Gitleaks Report
-        if: always()                           # Always upload the report even if previous step fails
-        uses: actions/upload-artifact@v4
+      - name: Generate SARIF
+        env:
+          SNYK_TOKEN: c80a2012-bb87-4482-beb5-399c664f183d
+        run: |
+          snyk test --all-projects --sarif-file-output=snyk.sarif || true
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          name: gitleaks-report
-          path: gitleaks-report.json
+          sarif_file: snyk.sarif
