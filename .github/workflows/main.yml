@@ -1,42 +1,53 @@
-name: gitleaks
+name: Gitleaks Code Scanning
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "**" ]  # all branches
   pull_request:
-    branches:
-      - main
+    branches: [ "**" ]  # all branches
   workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
 
 jobs:
   scan:
-    name: gitleaks
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install Gitleaks CLI
+      - name: Install Gitleaks
         run: |
-          wget -qO gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64.tar.gz
-          tar -xzf gitleaks.tar.gz
-          sudo mv gitleaks /usr/local/bin/gitleaks
-          rm -f gitleaks.tar.gz
+          sudo apt update
+          sudo apt install -y gitleaks
           gitleaks version
 
-      - name: Run Gitleaks and generate SARIF report
+      - name: Run Gitleaks & Generate SARIF
         run: |
           gitleaks detect --source . \
+            --config ./gitleaks.toml \
             --report-format=sarif \
-            --report-path=./gitleaks-report.sarif \
-            --exit-code=0 \
+            --report-path=./results.sarif \
             --verbose
 
       - name: Upload SARIF to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: "./gitleaks-report.sarif"
+          sarif_file: "./results.sarif"
+
+      - name: Fail pipeline if leaks are detected (BLOCKING STEP)
+        run: |
+          leak_count=$(gitleaks detect --source . --config ./gitleaks.toml --no-git --exit-code=0 | grep -i "leak(s) found" || echo "")
+          if [ ! -z "$leak_count" ]; then
+            echo "❌ Secrets detected! Blocking pipeline."
+            exit 1
+          else
+            echo "✔ No secrets found."
+          fi
