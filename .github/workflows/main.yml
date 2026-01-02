@@ -3,7 +3,7 @@ name: gitleaks
 on:
   push:
     branches:
-      - main  # Change if your target branch is different
+      - main
   pull_request:
     branches:
       - main
@@ -13,11 +13,30 @@ jobs:
   scan:
     name: gitleaks
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Run Gitleaks (don't fail if secrets are found)
-        uses: gitleaks/gitleaks-action@v2
+      - name: Install Gitleaks CLI
+        run: |
+          wget -qO gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64.tar.gz
+          tar -xzf gitleaks.tar.gz
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          rm -f gitleaks.tar.gz
+          gitleaks version
+
+      - name: Run Gitleaks and generate SARIF report
+        run: |
+          gitleaks detect --source . \
+            --report-format=sarif \
+            --report-path=./gitleaks-report.sarif \
+            --exit-code=0 \
+            --verbose
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "./gitleaks-report.sarif"
