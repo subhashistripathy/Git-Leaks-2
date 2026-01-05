@@ -46,8 +46,8 @@ jobs:
         run: |
           leak_count=$(gitleaks detect --source . --config ./gitleaks.toml --no-git --exit-code=0 | grep -i "leak(s) found" || echo "")
           if [ ! -z "$leak_count" ]; then
-            echo "❌ Secrets detected! Blocking pipeline."
+            echo "Secrets detected! Blocking pipeline."
             exit 1
           else
-            echo "✔ No secrets found."
+            echo "No secrets found."
           fi
